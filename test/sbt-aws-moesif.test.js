@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const cdk = require("aws-cdk-lib");
+const assertions_1 = require("aws-cdk-lib/assertions");
+const MoesifBilling = require("../lib/index");
+test('Moesif User Management Lambdas Created', () => {
+    const app = new cdk.App();
+    const stack = new cdk.Stack(app, "moesif-test-stack");
+    new MoesifBilling.MoesifBilling(stack, 'MoesifBilling', {
+        applicationId: '',
+        managementAPIKey: '',
+    });
+    const template = assertions_1.Template.fromStack(stack);
+});
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2J0LWF3cy1tb2VzaWYudGVzdC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbInNidC1hd3MtbW9lc2lmLnRlc3QudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxtQ0FBbUM7QUFDbkMsdURBQWtEO0FBQ2xELDhDQUE4QztBQUU5QyxJQUFJLENBQUMsd0NBQXdDLEVBQUUsR0FBRyxFQUFFO0lBQ2pELE1BQU0sR0FBRyxHQUFHLElBQUksR0FBRyxDQUFDLEdBQUcsRUFBRSxDQUFDO0lBQzFCLE1BQU0sS0FBSyxHQUFHLElBQUksR0FBRyxDQUFDLEtBQUssQ0FBQyxHQUFHLEVBQUUsbUJBQW1CLENBQUMsQ0FBQztJQUN0RCxJQUFJLGFBQWEsQ0FBQyxhQUFhLENBQUMsS0FBSyxFQUFFLGVBQWUsRUFBRTtRQUNuRCxhQUFhLEVBQUUsRUFBRTtRQUNqQixnQkFBZ0IsRUFBRSxFQUFFO0tBQ3ZCLENBQ0QsQ0FBQztJQUNGLE1BQU0sUUFBUSxHQUFHLHFCQUFRLENBQUMsU0FBUyxDQUFDLEtBQUssQ0FBQyxDQUFDO0FBQzlDLENBQUMsQ0FBQyxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0ICogYXMgY2RrIGZyb20gJ2F3cy1jZGstbGliJztcbmltcG9ydCB7IFRlbXBsYXRlIH0gZnJvbSAnYXdzLWNkay1saWIvYXNzZXJ0aW9ucyc7XG5pbXBvcnQgKiBhcyBNb2VzaWZCaWxsaW5nIGZyb20gJy4uL2xpYi9pbmRleCc7XG5cbnRlc3QoJ01vZXNpZiBVc2VyIE1hbmFnZW1lbnQgTGFtYmRhcyBDcmVhdGVkJywgKCkgPT4ge1xuICAgY29uc3QgYXBwID0gbmV3IGNkay5BcHAoKTtcbiAgIGNvbnN0IHN0YWNrID0gbmV3IGNkay5TdGFjayhhcHAsIFwibW9lc2lmLXRlc3Qtc3RhY2tcIik7XG4gICBuZXcgTW9lc2lmQmlsbGluZy5Nb2VzaWZCaWxsaW5nKHN0YWNrLCAnTW9lc2lmQmlsbGluZycsIHtcbiAgICAgICAgYXBwbGljYXRpb25JZDogJycsXG4gICAgICAgIG1hbmFnZW1lbnRBUElLZXk6ICcnLFxuICAgIH1cbiAgICk7XG4gICBjb25zdCB0ZW1wbGF0ZSA9IFRlbXBsYXRlLmZyb21TdGFjayhzdGFjayk7XG59KTtcbiJdfQ==
