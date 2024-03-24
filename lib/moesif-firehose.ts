@@ -4,6 +4,11 @@ import * as s3 from "aws-cdk-lib/aws-s3";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as kinesisfirehose from "aws-cdk-lib/aws-kinesisfirehose";
 
+export enum MoesifEventSchema {
+  ACTION = 'actions', // https://www.moesif.com/docs/api#actions
+  API_CALLS = 'events' // https://www.moesif.com/docs/api#api-calls
+}
+
 /**
  * Properties for the MoesifFirehoseConstruct.
  */
@@ -12,6 +17,11 @@ export interface MoesifFirehoseConstructProps {
    * The Application Id from your Moesif account. This is a required property with a minimum length of 50 characters.
    */
   readonly moesifApplicationId: string;
+
+   /**
+   * Override the base URL for the Moesif Collector API. For most setups, you don't need to set this.
+   */
+  readonly moesifCollectorAPIBaseUrl?: string;
 
   /**
    * The name of the Kinesis Firehose delivery stream.
@@ -24,6 +34,12 @@ export interface MoesifFirehoseConstructProps {
    * @default - A unique name will be generated.
    */
   readonly bucketName?: string;
+
+  /**
+   * Moesif Event Schema for data ingestion
+   * @default - Moesif Action
+   */
+  readonly schema?: MoesifEventSchema;
 }
 
 /**
@@ -45,7 +61,10 @@ export class MoesifFirehoseConstruct extends Construct {
   constructor(scope: Construct, id: string, props: MoesifFirehoseConstructProps) {
     super(scope, id);
 
-    const moesifURL = "https://api.moesif.net/v1/partners/aws/kinesis/actions";
+    const moesifURL = (props.moesifCollectorAPIBaseUrl ?? "https://api.moesif.net") + 
+      "/v1/partners/aws/kinesis/" +
+      (props.schema || MoesifEventSchema.ACTION);
+
     const bucket = new s3.Bucket(this, "MoesifBackupBucket", {
       bucketName: props.bucketName,
       encryption: s3.BucketEncryption.S3_MANAGED,
