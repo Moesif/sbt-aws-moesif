@@ -1,13 +1,15 @@
 import * as cdk from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
-import * as MoesifBilling from '../lib/index';
+import { MoesifBilling, BillingProviderSlug } from '../lib';
 
-test('Moesif User Management Lambdas Created', () => {
+test('Moesif Billing Management Lambdas Created', () => {
    const app = new cdk.App();
    const stack = new cdk.Stack(app, "moesif-test-stack");
-   new MoesifBilling.MoesifBilling(stack, 'MoesifBilling', {
-        applicationId: '',
-        managementAPIKey: '',
+   new MoesifBilling(stack, 'MoesifBilling', {
+      moesifApplicationId: '<<Your Moesif Application Id>>',
+      moesifManagementAPIKey: '<<Your Moesif Management API Key>>',
+      billingProviderSlug: BillingProviderSlug.STRIPE,
+      billingProviderSecretKey: '<<Your Billing Provider\'s Secret Such as for Stripe>>'
     }
    );
    const template = Template.fromStack(stack);

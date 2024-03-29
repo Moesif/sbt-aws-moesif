@@ -62,15 +62,17 @@ export interface MoesifBillingProps {
     readonly billingProviderBaseUrl?: string
 
     /**
-     * Default plan id to be used when creating new subscriptions 
+     * Tenant object's field name that contains the plan id used when creating new subscriptions 
      * Only used when billingProviderSlug is ZUORA
+     * @default planId
      */ 
-    readonly defaultPlanId?: string
+    readonly tenantPlanField?: string
 
     /**
-     * Default price id to be used when creating new subscriptions 
+     * Tenant object's field name that contains the price id used when creating new subscriptions 
+     * @default priceId
      */ 
-    readonly defaultPriceId: string
+    readonly tenantPriceField?: string
 
     /**
      * The name of the Kinesis Firehose delivery stream.
@@ -92,6 +94,8 @@ export interface MoesifBillingProps {
 }
 
 export class MoesifBilling extends Construct implements IBilling {
+    readonly createCustomerFunction: lambda.IFunction;
+    readonly deleteCustomerFunction: lambda.IFunction;
     readonly createUserFunction: lambda.IFunction;
     readonly deleteUserFunction: lambda.IFunction;
     readonly ingestor: IDataIngestorAggregator;
@@ -99,19 +103,23 @@ export class MoesifBilling extends Construct implements IBilling {
     readonly webhookFunction?: lambda.IFunction;
     readonly webhookPath?: string;
     readonly managementBaseUrl: string;
+    readonly planField: string
+    readonly priceField: string
     readonly firehose: MoesifFirehoseConstruct;
     readonly logGroupName: string
 
     constructor(scope: Construct, id: string, props: MoesifBillingProps) {
         super(scope, id);
 
-        this.managementBaseUrl = props.moesifManagementAPIBaseUrl || 'https://api.moesif.com'
-        this.logGroupName = 'MoesifBilling'
+        this.managementBaseUrl = props.moesifManagementAPIBaseUrl || 'https://api.moesif.com';
+        this.planField = props.tenantPlanField || 'planId';
+        this.priceField = props.tenantPriceField || 'priceId';
+        this.logGroupName = 'MoesifBilling';
 
         /**
-         * The function to trigger when creating a new billing user.
+         * The function to trigger for customer and user management
          */
-        const billingUserService: lambda.IFunction = new lambda.Function(this, '-Management', {
+        const billingManagement: lambda.IFunction = new lambda.Function(this, '-Management', {
             runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'billing_management.handler',
             tracing: lambda.Tracing.ACTIVE,
@@ -127,8 +135,8 @@ export class MoesifBilling extends Construct implements IBilling {
                 BILLING_PROVIDER_SECRET_KEY: props.billingProviderSecretKey,
                 BILLING_PROVIDER_CLIENT_ID: props.billingProviderClientId || '',
                 BILLING_PROVIDER_BASE_URL: props.billingProviderBaseUrl || '',
-                DEFAULT_PLAN_ID: props.defaultPlanId || '',
-                DEFAULT_PRICE_ID: props.defaultPriceId,
+                TENANT_PLAN_FIELD: this.planField,
+                TENANT_PRICE_FIELD: this.priceField,
             },
         });
 
@@ -141,10 +149,13 @@ export class MoesifBilling extends Construct implements IBilling {
             schema: props.schema
         })
 
-        this.createUserFunction = billingUserService;
-        this.deleteUserFunction = billingUserService;
+        this.createCustomerFunction = billingManagement;
+        this.deleteCustomerFunction = billingManagement;
+    // TODO Enable once SBT Fixed
+    //    this.createUserFunction = billingManagement;
+    //    this.deleteUserFunction = billingManagement;
         this.ingestor = null as any;
-        this.putUsageFunction = billingUserService // FIXME
+        this.putUsageFunction = null as any
         this.webhookFunction = null as any;
         this.webhookPath = null as any;
     }
