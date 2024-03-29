@@ -60,14 +60,13 @@ export class ControlPlaneStack extends Stack {
       systemAdminEmail: '<<Your Admin Email>>',
     });
 
-    const moesifBilling = new MoesifBilling(this, 'MoesifBilling', {
-        moesifApplicationId: '<<Your Moesif Application Id>>',
-        moesifManagementAPIKey: 'Your Moesif Management API Key>>',
-        billingProviderSlug: BillingProviderSlug.STRIPE,
-        billingProviderSecretKey: '<<Your Billing Provider\'s Secret>>',
-        defaultPriceId: '<<Price Id for new subscriptions>>',
-      }
-   ); 
+    const moesifBilling = new MoesifBilling(stack, 'MoesifBilling', {
+      moesifApplicationId: '<<Your Moesif Application Id>>',
+      moesifManagementAPIKey: '<<Your Moesif Management API Key>>',
+      billingProviderSlug: BillingProviderSlug.STRIPE,
+      billingProviderSecretKey: '<<Your Billing Provider\'s Secret Such as for Stripe>>'
+    }
+   );
 
     const controlPlane = new ControlPlane(this, 'ControlPlane', {
       auth: cognitoAuth,
@@ -81,25 +80,52 @@ export class ControlPlaneStack extends Stack {
 
 ### Moesif Billing Properties
 
-|Property Name|Type|Required|Description|
-|-------------|----|--------|-----------|
-|moesifApplicationId|string|Required|Collector Application Id from your Moesif account for event ingestion|
-|moesifManagementAPIKey|string|Required|Management API Key from your Moesif account. The key must have the following scopes: create:companies create:subscriptions create:users delete:companies  delete:subscriptions delete:users|
-|moesifManagementAPIBaseUrl|string||Override the base URL for the Moesif Mangaement API. For most setups, you don't need to set this.|
-|moesifCollectorAPIBaseUrl|string||Override the base URL for the Moesif Collector API. For most setups, you don't need to set this.|
-|billingProviderSlug|BillingProviderSlug|Required| Slug for Billing Provider / Payment Gateway|
-|billingProviderSecretKey|string|Required|Secret Key for Billing Provider / Payment Gateway selected by billingProviderSlug|
-|billingProviderClientId|string|Only if Zuora|Client Id for Billing Provider / Payment Gateway. Only used when billingProviderSlug is Zuora|
-|billingProviderBaseUrl|string|Only if Chargebee or Zuora|Base URL for Billing Provider / Payment Gateway. Only used when billingProviderSlug is Zuora or Chargebee|
-|defaultPlanId|string|Only if Zuora|Default plan id to be used when creating new subscriptions|
-|defaultPriceId|string|Required|Default price id to be used when creating new subscriptions|
-|firehoseName|string||The name of the Kinesis Firehose delivery stream. By default, a unique name will be generated.|
-|bucketName|string||The name of the S3 bucket for backup. By default, a unique name will be generated|
-|schema|string||Moesif Event Schema for data ingestion. By default, Moesif actions|
+|Property Name|Type|Required|Description|Default|
+|-------------|----|--------|-----------|-------|
+|moesifApplicationId|string|Required|Collector Application Id from your Moesif account for event ingestion||
+|moesifManagementAPIKey|string|Required|Management API Key from your Moesif account. The key must have the following scopes: create:companies create:subscriptions create:users delete:companies  delete:subscriptions delete:users||
+|moesifManagementAPIBaseUrl|string||Override the base URL for the Moesif Mangaement API. For most setups, you don't need to set this.|https://api.moesif.com|
+|moesifCollectorAPIBaseUrl|string||Override the base URL for the Moesif Collector API. For most setups, you don't need to set this.|https://api.moesif.net|
+|billingProviderSlug|BillingProviderSlug|Required| Slug for Billing Provider / Payment Gateway||
+|billingProviderSecretKey|string|Required|Secret Key for Billing Provider / Payment Gateway selected by billingProviderSlug||
+|billingProviderClientId|string|Only if Zuora|Client Id for Billing Provider / Payment Gateway. Only used when billingProviderSlug is Zuora||
+|billingProviderBaseUrl|string|Only if Chargebee or Zuora|Base URL for Billing Provider / Payment Gateway. Only used when billingProviderSlug is Zuora or Chargebee||
+|tenantPlanField|string||Tenant object's field name that contains the plan id used when creating new subscriptions. Only used when billingProviderSlug is Zuora|planId|
+|tenantPriceField|string||Tenant object's field name that contains the price id used when creating new subscriptions.|priceId|
+|firehoseName|string||The name of the Kinesis Firehose delivery stream. By default, a unique name will be generated.||
+|bucketName|string||The name of the S3 bucket for backup. By default, a unique name will be generated.||
+|schema|string||Moesif Event Schema for data ingestion. By default, Moesif actions||
 
 ### 3. Provision a Tenant
-Once you deployed your stack with Moesif, create a tenant in your AWS SBT setup. 
-If you're running the `hello-cdk` project, this can be done by running [this script](https://github.com/awslabs/sbt-aws/tree/main/docs/public#test-the-deployment) to onboard a new tenant. Once done, you should see the company show up in the Moesif UI. There should also be a subscription for the company in the "active" status.
+Once you deploy your updated stack, create a tenant in your AWS SBT setup using the SBT APIs.
+
+When you create a tenant, you must also set the price id to be used for creating subscriptions, By default, the field name is `priceId`, but this can be overridden via the above options. If you are using Zuora, you must also set the plan id. The field `email` must also be set.
+
+_If your provider is set to Zuora, [you must also set these fields](#Zuora)_
+
+If you're running the `hello-cdk` project, this can be done by running [this script](https://github.com/awslabs/sbt-aws/tree/main/docs/public#test-the-deployment) to onboard a new tenant. Modify, the script to also include the price (and plan if required).
+
+> To find your plan id and price id, you can log into Moesif UI and go to Product Catalog or log into your billing provider.
+
+```bash
+DATA=$(jq --null-input \
+    --arg tenantEmail "$TENANT_EMAIL" \
+    --arg tenantId "$TENANT_ID" \
+    '{
+  "email": $tenantEmail,
+  "tenantId": $tenantId,
+  "priceId": "price_1MoBy5LkdIwHu7ixZhnattbh"
+}')
+
+echo "creating tenant..."
+curl --request POST \
+    --url "${CONTROL_PLANE_API_ENDPOINT}tenants" \
+    --header "Authorization: Bearer ${ID_TOKEN}" \
+    --header 'content-type: application/json' \
+    --data "$DATA"
+```
+
+Once done, you should see the company show up in the Moesif UI. There should also be a subscription for the company in the "active" status.
 
 The tenant will be subscribed to the price defined by `defaultPriceId`. 
 This can be expanded to allow more customization.
@@ -146,11 +172,26 @@ Now that the tenant is created, follow [these steps](https://www.moesif.com/docs
 
 You should also select the provider and price defined by `billingProviderSlug` and `defaultPriceId`.
 
+## Provider Specific Requirements
+
+### Zuora
+If you are using Zuora, the following fields must be set when creating a new tenant:
+
+```json
+{
+    "email": "<Customer email address>",
+    "firstName": "<First name of customer contact>",
+    "lastName": "<Last name of customer contact>",
+    "currency": "<Three-letter ISO currency code>",
+    "address": {
+        "state": "<State or providence of the contact's address>",
+        "country": "<The country of the contact's address>"
+    }
+}
+```
+
 ## Limitations
 `sbt-aws-moesif` is in preview. Development is still ongoing. There are limitations to be aware of.
-* All tenants are initially subscribed to the same price defined by the property `defaultPriceId`.
-* The customer's name email and email are set to placeholders. This can be updated later via API or UI.
-* When using Zuora, Currency and Country are always set to USD and USA initially. This can be updated later via API or UI.
 * Deprovisioning a tenant will cancel all subscriptions but does not delete objects in case a subscription should be reactivated.
 
 ## Useful commands

@@ -68,13 +68,15 @@ def request(base_url, method, path, headers, payload, serialize, log_payload = T
     while retry:
         try:
             conn.request(method, path, payload_str, headers)
-            
             response = conn.getresponse()
-            print(response.status)
+            print(f'response.status={response.status}')
             response_body = response.read().decode('utf-8')
-            print(response_body)
+            if (log_payload):
+                print(response_body.replace('\n', '').replace('\r',''))
+            if response.status >= 400:
+                raise Exception(f'HTTP error {response.status}')
             return json.loads(response_body)
-        except Exception as e:
+        except Exception as e: 
             print(e)
             if not retry:
                 raise e
