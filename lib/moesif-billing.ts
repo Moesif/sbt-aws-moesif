@@ -4,8 +4,7 @@
 import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { aws_logs, Duration } from 'aws-cdk-lib';
-import { IDataIngestorAggregator } from '@cdklabs/sbt-aws/lib/control-plane/ingestor-aggregator/ingestor-aggregator-interface';
-import { IBilling } from '@cdklabs/sbt-aws/lib/control-plane/billing/billing-interface';
+import * as sbt from '@cdklabs/sbt-aws';
 import * as path from 'path';
 import { MoesifFirehoseConstruct, MoesifEventSchema } from './moesif-firehose'
 
@@ -93,15 +92,11 @@ export interface MoesifBillingProps {
     readonly schema?: MoesifEventSchema;
 }
 
-export class MoesifBilling extends Construct implements IBilling {
+export class MoesifBilling extends Construct implements sbt.IBilling {
     readonly createCustomerFunction: lambda.IFunction;
     readonly deleteCustomerFunction: lambda.IFunction;
     readonly createUserFunction: lambda.IFunction;
     readonly deleteUserFunction: lambda.IFunction;
-    readonly ingestor: IDataIngestorAggregator;
-    readonly putUsageFunction: lambda.IFunction;
-    readonly webhookFunction?: lambda.IFunction;
-    readonly webhookPath?: string;
     readonly managementBaseUrl: string;
     readonly planField: string
     readonly priceField: string
@@ -151,12 +146,7 @@ export class MoesifBilling extends Construct implements IBilling {
 
         this.createCustomerFunction = billingManagement;
         this.deleteCustomerFunction = billingManagement;
-    // TODO Enable once SBT Fixed
-    //    this.createUserFunction = billingManagement;
-    //    this.deleteUserFunction = billingManagement;
-        this.ingestor = null as any;
-        this.putUsageFunction = null as any
-        this.webhookFunction = null as any;
-        this.webhookPath = null as any;
+        this.createUserFunction = billingManagement;
+        this.deleteUserFunction = billingManagement;
     }
 }

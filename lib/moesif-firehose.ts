@@ -3,6 +3,7 @@ import { Construct } from "constructs";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as kinesisfirehose from "aws-cdk-lib/aws-kinesisfirehose";
+import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 
 export enum MoesifEventSchema {
   ACTION = 'actions', // https://www.moesif.com/docs/api#actions
@@ -77,6 +78,14 @@ export class MoesifFirehoseConstruct extends Construct {
       externalIds: [cdk.Stack.of(this).account],
     });
 
+    const firehoseStreamLogGroup = new LogGroup(this, 'firehoseStreamLogGroup', {
+      retention: RetentionDays.ONE_WEEK
+    });
+    const firehoseStreamLogGroupStream = firehoseStreamLogGroup.addStream('firehoseStreamLogGroupStream')
+    firehoseStreamLogGroup.grantWrite(deliveryRole);
+
+    bucket.grantReadWrite(deliveryRole);
+
     this.firehoseStream = new kinesisfirehose.CfnDeliveryStream(this, "KinesisFirehose", {
       deliveryStreamName: props.firehoseName,
       deliveryStreamType: "DirectPut",
@@ -97,6 +106,12 @@ export class MoesifFirehoseConstruct extends Construct {
           bucketArn: bucket.bucketArn,
           roleArn: deliveryRole.roleArn,
         },
+        cloudWatchLoggingOptions: {
+          enabled: true,
+          logGroupName: firehoseStreamLogGroup.logGroupName,
+          logStreamName: firehoseStreamLogGroupStream.logStreamName,
+        },
+        roleArn: deliveryRole.roleArn,
       },
     });
   }
