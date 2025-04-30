@@ -79,6 +79,8 @@ export class ControlPlaneStack extends Stack {
 }
 ```
 
+> Get your Moesif Management API Key and Application Id by signing up for Moesif. During onboarding, select _AWS_ in the directory, and then _AWS SBT (Saas Builder Toolkit). If any questions, (email support)[mailto:support@moesif.com]_
+
 ### Moesif Billing Properties
 
 |Property Name|Type|Required|Description|Default|
