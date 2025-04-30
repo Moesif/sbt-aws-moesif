@@ -50,14 +50,14 @@ Instantiate the [MoesifBilling](https://github.com/Moesif/sbt-aws-moesif/blob/ma
 ```typescript
 export class ControlPlaneStack extends Stack {
   public readonly regApiGatewayUrl: string;
-  public readonly eventBusArn: string;
+  public readonly eventManager: IEventManager;
 
   constructor(scope: Construct, id: string, props: any) {
     super(scope, id, props);
+
     const cognitoAuth = new CognitoAuth(this, 'CognitoAuth', {
-      idpName: 'COGNITO',
-      systemAdminRoleName: 'SystemAdmin',
-      systemAdminEmail: '<<Your Admin Email>>',
+      enableAdvancedSecurityMode: false, // only for testing purposes!
+      setAPIGWScopes: false, // only for testing purposes!
     });
 
     const moesifBilling = new MoesifBilling(stack, 'MoesifBilling', {
@@ -71,8 +71,9 @@ export class ControlPlaneStack extends Stack {
     const controlPlane = new ControlPlane(this, 'ControlPlane', {
       auth: cognitoAuth,
       billing: moesifBilling,
+      systemAdminEmail: 'your-email@example.com',
     });
-    this.eventBusArn = controlPlane.eventBusArn;
+    this.eventManager = controlPlane.eventManager;
     this.regApiGatewayUrl = controlPlane.controlPlaneAPIGatewayUrl;
   }
 }
@@ -107,14 +108,60 @@ If you're running the `hello-cdk` project, this can be done by running [this scr
 
 > To find your plan id and price id, you can log into Moesif UI and go to Product Catalog or log into your billing provider.
 
+Below is a script that creates a user and then a tenant using the SBT APIs.
+The tenant is subscribed to the plan and price specified. 
+
 ```bash
+PASSWORD='Your Password'
+# Change this to a real email if you'd like to log into the tenant
+ID=$RANDOM
+TENANT_EMAIL="myuser@example.com" 
+CONTROL_PLANE_STACK_NAME="ControlPlaneStack"
+TENANT_ID="$ID"
+TENANT_NAME="tenant-$ID"
+
+CLIENT_ID="<Your Cognito Client Id>>"
+USER_POOL_ID="<Your Cognito Pool Id>"
+USER="admin"
+CONTROL_PLANE_API_ENDPOINT='https://XXXXXXX.execute-api.us-west-1.amazonaws.com/'
+
+# required in order to initiate-auth
+aws cognito-idp update-user-pool-client \
+    --user-pool-id "$USER_POOL_ID" \
+    --client-id "$CLIENT_ID" \
+    --explicit-auth-flows USER_PASSWORD_AUTH
+
+# remove need for password reset
+aws cognito-idp admin-set-user-password \
+    --user-pool-id "$USER_POOL_ID" \
+    --username "$USER" \
+    --password "$PASSWORD" \
+    --permanent
+
+# get credentials for user
+AUTHENTICATION_RESULT=$(aws cognito-idp initiate-auth \
+    --auth-flow USER_PASSWORD_AUTH \
+    --client-id "${CLIENT_ID}" \
+    --auth-parameters "USERNAME=${USER},PASSWORD=${PASSWORD}" \
+    --query 'AuthenticationResult')
+
+ID_TOKEN=$(echo "$AUTHENTICATION_RESULT" | jq -r '.IdToken')
+echo "ID_TOKEN: $ID_TOKEN"
+
+
 DATA=$(jq --null-input \
+    --arg tenantName "$TENANT_NAME" \
     --arg tenantEmail "$TENANT_EMAIL" \
     --arg tenantId "$TENANT_ID" \
     '{
+  "tenantName": $tenantName,
   "email": $tenantEmail,
+  "firstName":  $tenantName,
+  "tier": "basic",
   "tenantId": $tenantId,
-  "priceId": "price_1MoBy5LkdIwHu7ixZhnattbh"
+  "tenantStatus": "In progress",
+  "priceId": "<Tenant Price Id>",
+  "planId": "<Tenant Plan Id>"
 }')
 
 echo "creating tenant..."
@@ -123,6 +170,7 @@ curl --request POST \
     --header "Authorization: Bearer ${ID_TOKEN}" \
     --header 'content-type: application/json' \
     --data "$DATA"
+echo "" # add newline
 ```
 
 Once done, you should see the company show up in the Moesif UI. There should also be a subscription for the company in the "active" status.
@@ -132,7 +180,7 @@ This can be expanded to allow more customization.
 
 ### 4. Ingest Events
 
-Now that you created a tenant, you should ingest some actions in you're newly created firehose. Actions have an action name (like "Signed Up", "API Request", or "Finished Job") which represents the usage event. You can also include arbitrary metadata with an action, which enables you to create billable metrics, usage reporting, and more. For more info, [see docs on actions](https://www.moesif.com/docs/getting-started/user-actions/)
+A firehose was also deployed to ingest [usage events](https://www.moesif.com/docs/ingest-action-events/aws-firehose/) which can be either API Calls or custom actions. Actions have an action name (like "Signed Up", "API Request", or "Finished Job") which represents the usage event. You can also include arbitrary metadata with an action, which enables you to create billable metrics, usage reporting, and more. For more info, [see docs on actions](https://www.moesif.com/docs/getting-started/user-actions/)
 
 You'll want to set a few fields like below:
 
@@ -142,7 +190,8 @@ You'll want to set a few fields like below:
 * `request.time` represents the transaction time as an ISO formatted string.
 * `metadata` is an object which includes any custom properties for this event. By setting metadata, you can bill on arbitrary metrics, create metrics on them, etc. For example, if the action name is "Processed Payment Transaction", you can include an amount and the currency to bill on the total amount. 
   
-For full schema and available fields, see [Actions API Reference](https://www.moesif.com/docs/api#track-user-actions-in-batch)
+
+ The firehose message must match the schema for an action. See [Actions API Reference](https://www.moesif.com/docs/api#track-user-actions-in-batch)
 
 An example action is below:
 

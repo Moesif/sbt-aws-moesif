@@ -7,6 +7,7 @@ import { aws_logs, Duration } from 'aws-cdk-lib';
 import * as sbt from '@cdklabs/sbt-aws';
 import * as path from 'path';
 import { MoesifFirehoseConstruct, MoesifEventSchema } from './moesif-firehose'
+import { IASyncFunction } from '@cdklabs/sbt-aws';
 
 export enum BillingProviderSlug {
     STRIPE = 'stripe', // https://www.moesif.com/docs/metered-billing/integrate-with-stripe/
@@ -93,10 +94,10 @@ export interface MoesifBillingProps {
 }
 
 export class MoesifBilling extends Construct implements sbt.IBilling {
-    readonly createCustomerFunction: lambda.IFunction;
-    readonly deleteCustomerFunction: lambda.IFunction;
-    readonly createUserFunction: lambda.IFunction;
-    readonly deleteUserFunction: lambda.IFunction;
+    readonly createCustomerFunction: IASyncFunction;
+    readonly deleteCustomerFunction: IASyncFunction
+    readonly createUserFunction: IASyncFunction;
+    readonly deleteUserFunction: IASyncFunction;
     readonly managementBaseUrl: string;
     readonly planField: string
     readonly priceField: string
@@ -144,9 +145,20 @@ export class MoesifBilling extends Construct implements sbt.IBilling {
             schema: props.schema
         })
 
-        this.createCustomerFunction = billingManagement;
-        this.deleteCustomerFunction = billingManagement;
-        this.createUserFunction = billingManagement;
-        this.deleteUserFunction = billingManagement;
+        this.createCustomerFunction = {
+            handler: billingManagement
+        }
+
+        this.deleteCustomerFunction = {
+            handler: billingManagement
+        }
+            
+        this.createUserFunction = {
+            handler: billingManagement
+        }
+
+        this.deleteUserFunction = {
+            handler: billingManagement
+        }
     }
 }
